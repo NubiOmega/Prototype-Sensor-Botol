@@ -1,0 +1,25 @@
+﻿# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+.env
+.env.*
+
+# IDE & tooling
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Application outputs
+runs/
+
+# OS generated
+.DS_Store
+Thumbs.db
+app/config.json
