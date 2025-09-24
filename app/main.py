@@ -304,8 +304,32 @@ class MainWindow(QMainWindow):
         self._apply_model_choice(choice, persist=True)
 
     def ensure_model_loaded(self, start_detection_after: bool = False) -> bool:
-        if self.detector.names:
+        model_choice = self.model_combo.currentData()
+        model_path = self.model_picker.text().strip()
+
+        if model_choice == CUSTOM_MODEL_SENTINEL:
+            if not model_path:
+                QMessageBox.warning(
+                    self,
+                    "Model belum dipilih",
+                    "Silakan pilih file model kustom (.pt) terlebih dahulu.",
+                )
+                return False
+            choice_for_config = CUSTOM_MODEL_SENTINEL
+        else:
+            if not model_choice:
+                model_choice = DEFAULT_MODEL
+            model_path = str(model_choice)
+            choice_for_config = model_path
+
+        if (
+            self.detector.names
+            and self.detector.model_path
+            and self.detector.model_path == model_path
+        ):
+            self.config = update_config(model_path=model_path, model_choice=choice_for_config)
             return True
+
         if self._model_loading:
             if start_detection_after:
                 self._pending_detection = True
@@ -316,22 +340,10 @@ class MainWindow(QMainWindow):
             )
             return False
 
-        model_choice = self.model_combo.currentData()
-        model_path = self.model_picker.text().strip()
-        if model_choice == CUSTOM_MODEL_SENTINEL:
-            if not model_path:
-                QMessageBox.warning(
-                    self,
-                    "Model belum dipilih",
-                    "Silakan pilih file model kustom (.pt) terlebih dahulu.",
-                )
-                return False
-            self.config = update_config(model_path=model_path, model_choice=CUSTOM_MODEL_SENTINEL)
-        else:
-            if not model_choice:
-                model_choice = DEFAULT_MODEL
-            model_path = str(model_choice)
-            self.config = update_config(model_path=model_path, model_choice=model_path)
+        if self.worker:
+            self.worker.disable_detection()
+        self.detector = Detector()
+        self.config = update_config(model_path=model_path, model_choice=choice_for_config)
         self._model_loading = True
         self._pending_detection = start_detection_after
         self._model_load_result = None
