@@ -53,6 +53,19 @@ python run_gpu.py
 ```
 The script clears any CPU-forcing flags and sets `ULTRALYTICS_DEVICE` so the detector moves the model onto the requested GPU.
 
+#### Installing CUDA-enabled PyTorch
+Ultralytics relies on PyTorch. To run on the GPU you must install a CUDA-capable PyTorch build:
+```powershell
+# Visit https://pytorch.org/get-started/locally/ and pick the command
+# that matches your CUDA toolkit version. Example for CUDA 12.1:
+python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+After installation, verify CUDA support inside your virtual environment:
+```powershell
+python -c "import torch; print(torch.cuda.is_available())"
+```
+It should print `True`. If it prints `False`, double-check your NVIDIA drivers and selected wheel.
+
 ### Manual entry point
 You can still launch the original module directly if you prefer to manage environment variables yourself:
 ```powershell

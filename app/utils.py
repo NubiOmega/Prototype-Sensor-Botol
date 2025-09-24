@@ -1,4 +1,4 @@
-﻿"""General utilities for the object detection app."""
+"""General utilities for the object detection app."""
 from __future__ import annotations
 
 import time
@@ -61,7 +61,7 @@ def numpy_to_qimage(frame: np.ndarray) -> QImage:
     """Convert a BGR numpy frame into a QImage for display."""
     if frame.ndim != 3:
         raise ValueError("Expected color frame with 3 dimensions")
-    rgb_frame = frame[:, :, ::-1]  # BGR -> RGB
+    rgb_frame = np.ascontiguousarray(frame[:, :, ::-1])  # BGR -> RGB
     height, width, channels = rgb_frame.shape
     bytes_per_line = channels * width
     return QImage(

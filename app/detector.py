@@ -9,6 +9,12 @@ from typing import Dict, Iterable, List, Optional, Sequence
 
 import cv2
 import numpy as np
+
+try:
+    import torch
+except Exception:  # pragma: no cover - optional dependency
+    torch = None
+
 from ultralytics import YOLO
 
 LOGGER = logging.getLogger(__name__)
@@ -35,16 +41,36 @@ class Detector:
 
     def _resolve_device(self) -> Optional[str]:
         value = os.environ.get(DEVICE_ENV_VAR, "").strip()
-        return value or None
+        if not value:
+            return None
+        normalized = value.lower()
+        if normalized.startswith("cuda"):
+            if torch is None:
+                LOGGER.warning("Torch not available; falling back to CPU for device '%s'", value)
+                return "cpu"
+            if not torch.cuda.is_available():
+                LOGGER.warning("CUDA not available; falling back to CPU for device '%s'", value)
+                return "cpu"
+        return value
 
     def _apply_device(self) -> None:
         if not self._device or self._model is None:
             return
+        target = self._device
         try:
-            self._model.to(self._device)
+            self._model.to(target)
         except Exception as exc:
-            LOGGER.warning("Unable to move model to device '%s': %s", self._device, exc)
-            raise
+            LOGGER.warning("Unable to move model to device '%s': %s", target, exc)
+            if target == "cpu":
+                return
+            self._device = "cpu"
+            try:
+                self._model.to("cpu")
+            except Exception:
+                LOGGER.exception("Failed to move model to CPU after GPU failure")
+                raise
+            else:
+                LOGGER.info("Model moved to CPU after GPU failure")
 
     def load(self, model_path: Optional[str] = None) -> List[str]:
         """Load model from supplied path or default."""
