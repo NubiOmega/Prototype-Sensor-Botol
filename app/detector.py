@@ -1,7 +1,8 @@
-﻿"""Ultralytics YOLO detector wrapper."""
+"""Ultralytics YOLO detector wrapper."""
 from __future__ import annotations
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
@@ -12,6 +13,7 @@ from ultralytics import YOLO
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_MODEL = "yolo11n.pt"
+DEVICE_ENV_VAR = "ULTRALYTICS_DEVICE"
 
 
 class Detector:
@@ -21,6 +23,7 @@ class Detector:
         self._model: YOLO | None = None
         self._model_path: str = ""
         self._names: Dict[int, str] = {}
+        self._device: Optional[str] = self._resolve_device()
 
     @property
     def names(self) -> Dict[int, str]:
@@ -30,9 +33,23 @@ class Detector:
     def model_path(self) -> str:
         return self._model_path
 
+    def _resolve_device(self) -> Optional[str]:
+        value = os.environ.get(DEVICE_ENV_VAR, "").strip()
+        return value or None
+
+    def _apply_device(self) -> None:
+        if not self._device or self._model is None:
+            return
+        try:
+            self._model.to(self._device)
+        except Exception as exc:
+            LOGGER.warning("Unable to move model to device '%s': %s", self._device, exc)
+            raise
+
     def load(self, model_path: Optional[str] = None) -> List[str]:
         """Load model from supplied path or default."""
         target = model_path or DEFAULT_MODEL
+        self._device = self._resolve_device()
         resolved = Path(target)
         try:
             self._model = YOLO(str(resolved))
@@ -43,6 +60,7 @@ class Detector:
             self._model = YOLO(DEFAULT_MODEL)
             target = DEFAULT_MODEL
         self._model_path = target
+        self._apply_device()
         self._names = self._model.model.names if hasattr(self._model, "model") else self._model.names
         return list(self._names.values())
 

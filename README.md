@@ -34,8 +34,28 @@ pip install -r requirements.txt
 4. In this desktop app, either pick the adapter from the camera dropdown or paste the URL `http://<phone-ip>:8080/video` into the Stream URL field.
 
 ## Running the Application
+Install Ultralytics once (if it is not already in your environment):
 ```powershell
-python -m pip install ultralytics  # if not already installed
+python -m pip install ultralytics
+```
+
+### CPU-only launch
+Use the helper script to disable CUDA and force PyTorch onto the CPU:
+```powershell
+python run_cpu.py
+```
+
+### GPU launch
+If you have a CUDA-capable GPU, point the launcher at the device index (defaults to `0` if omitted) and run the GPU script:
+```powershell
+$env:APP_GPU_DEVICE = "0"   # optional
+python run_gpu.py
+```
+The script clears any CPU-forcing flags and sets `ULTRALYTICS_DEVICE` so the detector moves the model onto the requested GPU.
+
+### Manual entry point
+You can still launch the original module directly if you prefer to manage environment variables yourself:
+```powershell
 python app/main.py
 ```
 
