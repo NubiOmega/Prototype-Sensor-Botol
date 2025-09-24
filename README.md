@@ -72,6 +72,9 @@ You can still launch the original module directly if you prefer to manage enviro
 python app/main.py
 ```
 
+### Model storage
+Place any additional `.pt` weights you download into the `models` folder (ignored by git) so the repository stays clean. Use the **Model kustom** picker in the app to load them from there.
+
 ### Typical Workflow
 1. **Select a camera** from the dropdown or paste a stream URL, then click **Connect**.
 2. Pilih model YOLO dari dropdown (Nano/Small/Medium/Large) atau klik "Model kustom" untuk memilih file `.pt` milik Anda.

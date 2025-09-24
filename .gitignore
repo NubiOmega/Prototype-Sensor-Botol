@@ -1,4 +1,4 @@
-﻿# Python artifacts
+# Python artifacts
 __pycache__/
 *.py[cod]
 *.pyo
@@ -23,3 +23,8 @@ runs/
 .DS_Store
 Thumbs.db
 app/config.json
+# Downloaded models
+models/
+*.pt
+!yolo11n.pt
+
