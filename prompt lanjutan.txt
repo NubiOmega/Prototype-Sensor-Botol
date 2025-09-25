@@ -1,0 +1,122 @@
+Bisa banget. Di bawah ini saya kasih Prompt Codex AI siap-pakai untuk meningkatkan app-mu supaya “sekelas web platform”: ada dashboard analitik, laporan otomatis (CSV/Excel/PDF), evaluasi model (mAP/PR curve/confusion matrix), batch inference & review, quality-gate & alert, experiment tracking, dan semi-auto labeling. Copy-paste blok prompt ini ke VS Code Chat.
+
+Prompt Codex AI — “Upgrade App: Analytics, Reports, Batch Review, Model Eval, QA Gates”
+You are a senior Python engineer. Extend the existing desktop YOLO app to include a full
+"platform-like" experience: analytics dashboard, reporting, evaluation, batch processing,
+quality-gates, and experiment tracking — all offline, beginner-friendly, and stable.
+
+### TECH / EXISTING
+- Python 3.11, PySide6 GUI, OpenCV, Ultralytics YOLO (v8/11), current repo structure:
+  app/{main.py, detector.py, camera.py, workers.py, ui_components.py, config.py, utils.py},
+  models/, runs/{records, snapshots}, tests/, requirements.txt.
+- Keep threads via QThread workers. No UI freeze.
+- Persist settings to app/config.json.
+
+### NEW FEATURES (ADD TABS)
+1) **Dashboard (Real-time Analytics)**
+   - Widgets: Total frames, total detections, detections/min, per-class counts (bar chart),
+     defect rate (%), last N alerts, current FPS, latency (ms), uptime.
+   - Gauges for "Defect Rate" vs target.
+   - Button “Reset Counters”.
+   - Implement with matplotlib in a non-blocking canvas.
+
+2) **Evaluation (Model Metrics)**
+   - Inputs: path to data.yaml, imgsz, conf, IoU, nms, device.
+   - Buttons:
+     - "Run Validation" -> runs YOLO .val() and parses results.csv to show:
+       * mAP50, mAP50-95 (overall + per-class table)
+       * Precision/Recall per class
+       * Confusion matrix (matplotlib heatmap)
+       * PR Curves (per class, dropdown)
+     - "Export Eval Report" -> save to:
+       * CSV (metrics_per_class.csv)
+       * Excel (report.xlsx) with sheets: summary, per_class, PR_data
+       * PDF (evaluation_report.pdf): include plots + summary (use reportlab or matplotlib.backends.backend_pdf)
+   - Show path of `best.pt` used.
+
+3) **Batch Inference & Review**
+   - Select a folder of images OR a video file.
+   - Run inference offline, save annotated outputs to `runs/batch/<timestamp>/images|video`.
+   - Generate `predictions.csv`: columns [file, class, conf, x1,y1,x2,y2, area, is_defect(bool)].
+   - Built-in reviewer UI:
+     * Thumbnail grid with filters (by class/defect, conf range, date).
+     * Click to open detail view (zoom, toggle boxes).
+     * Buttons: mark "TP/FP/FN" (for audit), quick-export misdetections to a folder.
+   - Button "Export Batch Report" -> CSV/Excel/PDF summary (counts, rates, top conf FP/FN thumbnails).
+
+4) **Quality Gates & Alerts**
+   - Configurable rules (saved in config.json):
+     * Thresholds per class (override global conf)
+     * Max allowed defect rate per minute
+     * ROI zones: define polygon(s) where detection is valid (e.g., line-scan area).
+   - If rule violated -> raise ALERT:
+     * On-screen banner + log line
+     * Optional WAV beep (no third-party required)
+     * Optional auto-snapshot to `runs/alerts/`.
+   - Add simple ROI editor:
+     * Draw polygon over the live feed, save/load ROI to `runs/roi/<name>.json`.
+
+5) **Experiment Tracking (Local)**
+   - Use SQLite `runs/experiments.db` with tables:
+     * `experiments(id, name, created_at, model_path, data_yaml, epochs, imgsz, batch, device, notes)`
+     * `metrics(experiment_id, epoch, map50, map5095, precision, recall, loss_box, loss_cls, loss_dfl, created_at)`
+   - Each training/validation run logs into DB (plus still writes Ultralytics results.csv).
+   - UI "Experiments" list: sortable table, search by name/date, double-click to open summary.
+
+6) **Semi-auto Labeling Assist (Optional but useful)**
+   - Tool to load a folder of raw images, run current model to pre-annotate,
+     then allow the user to quickly edit/save labels in YOLO format to `dataset/labels/...`.
+   - Keyboard shortcuts for: accept box (Enter), delete (Del), class change (number keys), save (Ctrl+S).
+   - Export labeled set as ZIP (`dataset_export_<ts>.zip`).
+
+7) **Two-Stage Pipeline Toggle**
+   - Option "Two-stage":
+     * Stage 1: Bottle detector (class 'bottle' or custom) → crop ROI around bottle.
+     * Stage 2: Defect model predicts on crop(s).
+   - UI lets pick `stage1_model.pt` and `stage2_model.pt`.
+   - Counters & analytics adapted to staged results.
+
+8) **Model Manager**
+   - Simple page to register models (name, path, notes), quick-set as active for Detect/Stage1/Stage2.
+   - Validate file exists; preview classes list from model.
+
+### CODE STRUCTURE (NEW / UPDATED)
+- app/
+  - dashboard.py              # dashboard widgets & charts
+  - eval.py                   # evaluation panel, plots, export
+  - batch.py                  # batch inference & review UI
+  - labeling.py               # semi-auto labeling tool
+  - roi.py                    # ROI editor
+  - experiments.py            # SQLite helpers, experiment list
+  - report.py                 # CSV/Excel/PDF export helpers
+  - workers.py                # add: EvalWorker, BatchWorker, AlertWorker, TrainWorker hooks
+- tests/
+  - test_eval_parsing.py, test_db_logging.py, test_report_export.py (smoke tests)
+- requirements.txt
+  - add: matplotlib, pandas, openpyxl, reportlab, sqlite-utils (or just stdlib sqlite3), scikit-image (optional)
+
+### IMPLEMENTATION NOTES
+- **Threading:** Long tasks (eval, batch, training) must run in QThread workers. Emit signals to update UI.
+- **Plots:** Use matplotlib with QtAgg canvas. Never block main thread.
+- **Exports:**
+  - CSV/Excel with pandas.
+  - PDF: assemble pages with plots + tables (reportlab or matplotlib PdfPages).
+- **Metrics Source:** read Ultralytics results.csv and/or callbacks; compute per-class tables.
+- **Confusion Matrix & PR Curves:** reuse Ultralytics outputs if available; otherwise compute from predictions vs labels (when data.yaml is provided).
+- **ROI:** Store polygon points in JSON; apply mask test to filter boxes outside ROI.
+- **Quality Gates:** rolling window (e.g., last 60s) for defect rate; implement ring-buffer for counts.
+- **Batch Reviewer:** cache thumbnails; keyboard shortcuts; export selected to ZIP.
+- **Error Handling:** Guard for missing files, invalid YAML, OOM — show QMessageBox with specific tips.
+- **Persistence:** Save last used paths & UI state in config.json.
+
+### ACCEPTANCE CRITERIA
+- Dashboard updates live counters (≥10 Hz) without UI stutter.
+- Evaluation tab runs .val() and shows: mAP50, mAP50-95, confusion matrix, PR curves; can export CSV/Excel/PDF.
+- Batch tab processes a folder/video, writes predictions.csv, shows reviewer with filters, and exports audit report.
+- Quality Gates trigger alert banner + optional snapshot/beep when thresholds exceeded; ROI editor persists polygons.
+- Experiments tracked in SQLite; list view shows past runs; double-click opens summary.
+- Model Manager registers multiple .pt files and switches active models quickly.
+- Two-stage pipeline works and updates analytics accordingly.
+- All long tasks are cancellable and release resources cleanly.
+
+Generate/modify all code and docs required. Provide README section updates for each new tab with short how-to.

@@ -105,3 +105,67 @@ python -m unittest discover -s tests
 
 ## Safe Shutdown
 Closing the application stops detection, flushes recordings, releases the camera, and persists your preferences.
+## Dataset Preparation
+The bundled dataset/ directory follows the standard Ultralytics layout:
+
+`
+dataset/
+  data.yaml
+  images/
+    train/
+    val/
+  labels/
+    train/
+    val/
+`
+
+Populate images/ with .jpg/.png files and labels/ with matching YOLO-format .txt annotations (same filename stem, class id x_center y_center width height normalised to [0,1]). Edit dataset/data.yaml if you need to change class names or point to a different dataset location.
+
+### Quick Split with dataset_tools.py
+If your raw data lives in a flat folder, use dataset_tools.py to split it deterministically:
+
+`powershell
+python dataset_tools.py --split <raw_images_dir> <raw_labels_dir>
+`
+
+Options:
+- --out dataset_custom to change the destination folder.
+- --train-ratio 0.85 and --seed 123 to tune the split.
+- --check dataset/data.yaml to validate paths and report missing pairs.
+
+### Training from the Command Line
+Train directly with Ultralytics from this repo:
+
+`powershell
+python train_defects.py --model yolo11n.pt --data dataset/data.yaml --epochs 80 --imgsz 960 --batch 16
+`
+
+Switch --device 0 to use CUDA (automatic AMP is enabled when available). The script prints the location of the best weights on completion.
+
+### Training Tab in the GUI
+Open the new **Training** tab to launch a run without leaving the app:
+
+1. Choose the dataset YAML (defaults to dataset/data.yaml).
+2. Select a base model to fine-tune (yolo11n.pt by default).
+3. Adjust epochs, image size, batch size, workers, device, resume/skip-validation toggles.
+4. Click **Start Training**. Progress, metrics, and logs stream live while the UI stays responsive.
+5. Use **Stop Training** to request a graceful shutdown after the current epoch.
+
+All training logs are mirrored to uns/training_<timestamp>.log for later review.
+
+### Training Outputs
+Ultralytics saves results under uns/detect/<name>/. The default run writes:
+
+`
+runs/detect/train/
+  weights/
+    best.pt
+    last.pt
+  results.csv
+  events.out.tfevents...
+`
+
+est.pt is the artifact the GUI reuses for the detector tab.
+
+### Loading the Trained Model
+Click **Load Trained Model** in the Training tab to automatically point the detection tab at uns/detect/train/weights/best.pt (or the latest successful run) and reload it without restarting the application.

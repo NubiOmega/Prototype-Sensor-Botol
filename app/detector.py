@@ -133,3 +133,4 @@ class Detector:
     def class_ids_from_labels(self, labels: Iterable[str]) -> List[int]:
         lookup = {name: idx for idx, name in self._names.items()}
         return [lookup[name] for name in labels if name in lookup]
+

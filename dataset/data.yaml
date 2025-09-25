@@ -1,0 +1,13 @@
+path: dataset
+train: images/train
+val: images/val
+names:
+  0: crack_major
+  1: crack_hairline
+  2: chip_mouth
+  3: chip_body
+  4: label_torn
+  5: no_cap
+  6: other_defect
+  7: bottle_ok
+
