@@ -1,171 +1,87 @@
-﻿# YOLO Desktop Object Detector
+﻿# Glass Bottle QC Suite
 
-A beginner-friendly Windows desktop application for real-time object detection using Ultralytics YOLO and PySide6. Supports local DirectShow webcams (including the "IP Camera Adapter" virtual camera) or direct HTTP/RTSP streams from a phone.
+Aplikasi desktop PySide6 untuk quality control botol kaca end-to-end. Sistem ini menggabungkan inferensi Ultralytics YOLOv11, workflow review, analitik, serta manajemen siklus model dalam antarmuka yang responsif untuk operator pabrik.
 
-## Features
-- Enumerates DirectShow camera devices with quick Connect/Disconnect controls.
-- Accepts HTTP/RTSP stream URLs (e.g. `http://<phone-ip>:8080/video`).
-- Lazy-loads Ultralytics YOLO models with presets (Nano, Small, Medium, Large) or a custom `.pt` file (auto-downloads if needed).
-- Progress dialog menjelaskan proses unduhan model dan memberi tahu jika selesai atau terjadi kesalahan.
-- Adjustable confidence threshold and per-class filtering.
-- Responsive PySide6 interface backed by worker thread for capture + inference (no UI freezes).
-- Annotated preview with FPS & inference time overlay.
-- Snapshot and optional MP4/AVI recording of annotated frames (`runs/snapshots`, `runs/records`).
-- Status bar and scrolling log for quick troubleshooting.
-- Clean shutdown that releases capture devices and threads.
+## Ringkasan Fitur
+- Deteksi real-time dengan metadata batch, ROI, aturan QC, pencatatan otomatis ke SQLite, dan kini mendukung jendela popup kamera.
+- Orkestrasi pelatihan dengan start/stop, resume, shortcut hasil, serta generator notebook Colab.
+- Review & relabel untuk mengkurasi deteksi, mengedit bounding box, dan menyiapkan dataset YOLO hasil koreksi.
+- Analitik & laporan dengan KPI filterable, chart, ekspor CSV, serta PDF siap audit.
+- Registri model dengan hashing, validasi, dan aktivasi satu klik.
+- Panel pengaturan untuk kamera, path, ROI preset, JSON aturan QC, operator, dan backup basis data.
 
-## Requirements
+## Persyaratan
 - Windows 10/11
-- Python 3.11+
-- Internet connection for the first model download (unless model file already present).
+- Python 3.11 ke atas
+- Disarankan GPU dengan CUDA (pasang PyTorch CUDA sebelum Ultralytics jika ingin akselerasi GPU)
 
-## Installation (PowerShell)
+## Instalasi
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
-> **Tip:** If you plan to use a GPU, install the matching PyTorch build first via the [official selector](https://pytorch.org/get-started/locally/). CPU-only installs work out of the box.
 
-## Phone Camera + IP Camera Adapter Setup
-1. Ensure your phone and PC share the same Wi-Fi network.
-2. Install the **IP Webcam** app on Android and start the server. Note the stream URL (`http://<phone-ip>:8080`).
-3. On Windows, install **IP Camera Adapter (x64)** and configure it with the phone stream URL if you want it to appear as a DirectShow webcam.
-4. In this desktop app, either pick the adapter from the camera dropdown or paste the URL `http://<phone-ip>:8080/video` into the Stream URL field.
-
-## Running the Application
-Install Ultralytics once (if it is not already in your environment):
-```powershell
-python -m pip install ultralytics
-```
-
-### CPU-only launch
-Use the helper script to disable CUDA and force PyTorch onto the CPU:
-```powershell
-python run_cpu.py
-```
-
-### GPU launch
-If you have a CUDA-capable GPU, point the launcher at the device index (defaults to `0` if omitted) and run the GPU script:
-```powershell
-$env:APP_GPU_DEVICE = "0"   # optional
-python run_gpu.py
-```
-The script clears any CPU-forcing flags and sets `ULTRALYTICS_DEVICE` so the detector moves the model onto the requested GPU.
-
-#### Installing CUDA-enabled PyTorch
-Ultralytics relies on PyTorch. To run on the GPU you must install a CUDA-capable PyTorch build:
-```powershell
-# Visit https://pytorch.org/get-started/locally/ and pick the command
-# that matches your CUDA toolkit version. Example for CUDA 12.1:
-python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-```
-After installation, verify CUDA support inside your virtual environment:
-```powershell
-python -c "import torch; print(torch.cuda.is_available())"
-```
-It should print `True`. If it prints `False`, double-check your NVIDIA drivers and selected wheel.
-
-### Manual entry point
-You can still launch the original module directly if you prefer to manage environment variables yourself:
+## Menjalankan Aplikasi
+Entry point GUI berada di `app/main.py`:
 ```powershell
 python app/main.py
 ```
 
-### Model storage
-Place any additional `.pt` weights you download into the `models` folder (ignored by git) so the repository stays clean. Use the **Model kustom** picker in the app to load them from there.
-
-### Typical Workflow
-1. **Select a camera** from the dropdown or paste a stream URL, then click **Connect**.
-2. Pilih model YOLO dari dropdown (Nano/Small/Medium/Large) atau klik "Model kustom" untuk memilih file `.pt` milik Anda.
-3. Load the model to populate the class list, adjust the confidence slider, and choose classes to detect.
-4. Click **Start Detection** to begin inference. Use **Stop Detection** to pause while keeping the camera connected.
-5. Use **Take Snapshot** to save the current annotated frame or enable **Record annotated video** before starting detection to log MP4/AVI clips.
-
-### Output Folders
-- Annotated snapshots: `runs/snapshots/` (timestamped JPEG files)
-- Recorded videos: `runs/records/`
-
-## Configuration Persistence
-The app stores your last-used selections (camera source, model path, confidence, class filters, recording toggle) in `app/config.json` so they load automatically next time.
-
-## Troubleshooting
-- **Camera won't open:** Ensure the phone stream is running, your firewall allows local connections, and the IP Camera Adapter is configured. For USB cameras, close other apps that might be using them.
-- **Model download fails:** Verify internet access or manually place the `.pt` file and set its path via the picker.
-- **Low FPS:** Try lighter models (e.g., `yolo11n.pt`), lower the input resolution inside the Ultralytics model settings, or pause other CPU-intensive tasks.
-- **Recording fails:** Install codecs such as [FFmpeg](https://ffmpeg.org/) if MP4 creation is unavailable on your system. The app automatically falls back to AVI.
-- **Adapter not listed:** Click "Refresh Cameras" in the menu or restart the adapter service.
-- **URL errors (404/401):** Double-check the phone app's streaming endpoint and authentication settings.
-
-## Tests
-Simple `unittest` checks are provided to validate camera enumeration, model loading, and the threaded frame loop (with mocked capture). Run all tests with:
+Helper script untuk konfigurasi CPU/GPU eksplisit:
 ```powershell
-python -m unittest discover -s tests
+# CPU
+python run_cpu.py
+
+# GPU (atur index device lewat environment variable)
+$env:APP_GPU_DEVICE = "0"
+python run_gpu.py
 ```
 
-## Safe Shutdown
-Closing the application stops detection, flushes recordings, releases the camera, and persists your preferences.
-## Dataset Preparation
-The bundled dataset/ directory follows the standard Ultralytics layout:
+## Alur Deteksi
+1. Pilih kamera lokal/IP stream dan load model dari registri.
+2. Isi metadata batch (lot, shift, line, operator) dan pilih preset ROI bila ada.
+3. Mulai deteksi. Aturan QC (`reject_if`, `min_conf`) menentukan status pass/fail otomatis.
+4. Pantau counter, tabel deteksi, log real-time, dan gunakan popup kamera untuk tampilan penuh. Hentikan deteksi untuk menutup batch.
 
-`
-dataset/
-  data.yaml
-  images/
-    train/
-    val/
-  labels/
-    train/
-    val/
-`
+## Review & Relabel
+- Telusuri frame gagal atau sampel, edit bounding box/kelas, dan simpan ke truth table ataupun direktori dataset reviewed (format YOLO).
+- Tombol ekspor menyiapkan dataset siap latih berikut YAML.
 
-Populate images/ with .jpg/.png files and labels/ with matching YOLO-format .txt annotations (same filename stem, class id x_center y_center width height normalised to [0,1]). Edit dataset/data.yaml if you need to change class names or point to a different dataset location.
+## Analitik & Laporan
+- Filter berdasarkan tanggal, lot, line, shift, operator, atau model.
+- KPI menampilkan jumlah inspeksi, pass/fail ratio, frekuensi defect, hingga tren.
+- Chart dirender ke PNG dan dapat diekspor ke CSV/PDF (ReportLab).
 
-### Quick Split with dataset_tools.py
-If your raw data lives in a flat folder, use dataset_tools.py to split it deterministically:
+## Siklus Model
+- Registrasikan bobot baru melalui tab Training/Registry (hash memastikan tidak duplikat).
+- Tombol `Set Active` memperbarui konfigurasi deteksi dan me-load model secara otomatis.
+- Validasi ringan dapat dijalankan terhadap frame tersimpan.
 
-`powershell
-python dataset_tools.py --split <raw_images_dir> <raw_labels_dir>
-`
+## Pelatihan
+- Jalankan Ultralytics training dari GUI, pantau log, dan batalkan tanpa membekukan UI.
+- `Create Colab Notebook` men-generate notebook dengan instruksi mount dataset dan sel pelatihan.
 
-Options:
-- --out dataset_custom to change the destination folder.
-- --train-ratio 0.85 and --seed 123 to tune the split.
-- --check dataset/data.yaml to validate paths and report missing pairs.
+## Pengaturan & Pemeliharaan
+- Simpan preset kamera/device, ROI rect/poly per line, dan atur JSON aturan QC.
+- Kelola path default, operator, serta backup/restore SQLite.
 
-### Training from the Command Line
-Train directly with Ultralytics from this repo:
+## Penyimpanan Data
+- Basis data SQLite `qc.db` menyimpan model, batch, inspeksi, deteksi, preset ROI, aturan QC, hasil review, dan operator.
+- Snapshot & rekaman berada di `runs/snapshots/` dan `runs/records/`.
+- Dataset hasil review ada di `dataset_reviewed/images` & `dataset_reviewed/labels`.
+- Ekspor analitik disimpan di folder `exports/`.
 
-`powershell
-python train_defects.py --model yolo11n.pt --data dataset/data.yaml --epochs 80 --imgsz 960 --batch 16
-`
+## Pengujian
+Jalankan smoke test dengan:
+```powershell
+python -m pytest
+```
 
-Switch --device 0 to use CUDA (automatic AMP is enabled when available). The script prints the location of the best weights on completion.
+## Troubleshooting
+- **Dependensi belum terpasang**: jalankan ulang `pip install -r requirements.txt` di dalam virtual environment.
+- **Model gagal diload**: pastikan path `.pt` benar dan hash sesuai entry registri.
+- **Chart kosong**: periksa filter tanggal/lot atau longgarkan rentangnya.
+- **Ekspor PDF gagal**: pastikan ReportLab terinstal dan folder `exports/` writable.
 
-### Training Tab in the GUI
-Open the new **Training** tab to launch a run without leaving the app:
-
-1. Choose the dataset YAML (defaults to dataset/data.yaml).
-2. Select a base model to fine-tune (yolo11n.pt by default).
-3. Adjust epochs, image size, batch size, workers, device, resume/skip-validation toggles.
-4. Click **Start Training**. Progress, metrics, and logs stream live while the UI stays responsive.
-5. Use **Stop Training** to request a graceful shutdown after the current epoch.
-
-All training logs are mirrored to uns/training_<timestamp>.log for later review.
-
-### Training Outputs
-Ultralytics saves results under uns/detect/<name>/. The default run writes:
-
-`
-runs/detect/train/
-  weights/
-    best.pt
-    last.pt
-  results.csv
-  events.out.tfevents...
-`
-
-est.pt is the artifact the GUI reuses for the detector tab.
-
-### Loading the Trained Model
-Click **Load Trained Model** in the Training tab to automatically point the detection tab at uns/detect/train/weights/best.pt (or the latest successful run) and reload it without restarting the application.
+Selamat menginspeksi dan pertahankan kualitas botol tanpa cacat!
