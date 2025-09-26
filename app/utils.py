@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, List
 
+import cv2
 import numpy as np
 from PySide6.QtGui import QImage
 
@@ -13,11 +14,12 @@ from PySide6.QtGui import QImage
 RUNS_DIR = Path("runs")
 SNAPSHOT_DIR = RUNS_DIR / "snapshots"
 RECORD_DIR = RUNS_DIR / "records"
+INSPECTION_DIR = RUNS_DIR / "inspections"
 
 
 def ensure_dirs() -> None:
     """Create runtime output directories."""
-    for directory in (RUNS_DIR, SNAPSHOT_DIR, RECORD_DIR):
+    for directory in (RUNS_DIR, SNAPSHOT_DIR, RECORD_DIR, INSPECTION_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
 
@@ -75,3 +77,23 @@ def numpy_to_qimage(frame: np.ndarray) -> QImage:
 
 def format_iterable(values: Iterable[str]) -> str:
     return ", ".join(values)
+
+
+def save_frame(frame: np.ndarray, path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(path), frame)
+    return path
+
+
+__all__ = [
+    "FpsCalculator",
+    "INSPECTION_DIR",
+    "RECORD_DIR",
+    "RUNS_DIR",
+    "SNAPSHOT_DIR",
+    "ensure_dirs",
+    "format_iterable",
+    "numpy_to_qimage",
+    "save_frame",
+    "timestamp_for_file",
+]

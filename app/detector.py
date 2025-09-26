@@ -5,7 +5,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -20,6 +20,8 @@ from ultralytics import YOLO
 LOGGER = logging.getLogger(__name__)
 DEFAULT_MODEL = "yolo11n.pt"
 DEVICE_ENV_VAR = "ULTRALYTICS_DEVICE"
+
+DetectionResult = Dict[str, object]
 
 
 class Detector:
@@ -95,7 +97,7 @@ class Detector:
         frame: np.ndarray,
         confidence: float,
         class_filter: Optional[Sequence[int]] = None,
-    ) -> tuple[np.ndarray, List[Dict[str, float]], float]:
+    ) -> tuple[np.ndarray, List[DetectionResult], float]:
         if self._model is None:
             raise RuntimeError("Model is not loaded")
         start = time.perf_counter()
@@ -108,7 +110,7 @@ class Detector:
         elapsed_ms = (time.perf_counter() - start) * 1000.0
         result = results[0]
         annotated = frame.copy()
-        detections: List[Dict[str, float]] = []
+        detections: List[DetectionResult] = []
         boxes = getattr(result, "boxes", None)
         if boxes is None or boxes.xyxy is None:
             return annotated, detections, elapsed_ms
@@ -116,14 +118,19 @@ class Detector:
         confidences = boxes.conf.cpu().numpy()
         classes = boxes.cls.cpu().numpy().astype(int)
         for idx, box in enumerate(xyxy):
-            x1, y1, x2, y2 = box.astype(int)
+            x1f, y1f, x2f, y2f = [float(v) for v in box]
+            x1, y1, x2, y2 = map(int, [x1f, y1f, x2f, y2f])
             conf = float(confidences[idx])
             cls_id = int(classes[idx])
             label = self._names.get(cls_id, str(cls_id))
-            detections.append({
-                "label": label,
-                "confidence": conf,
-            })
+            detections.append(
+                {
+                    "label": label,
+                    "confidence": conf,
+                    "bbox": (x1f, y1f, x2f, y2f),
+                    "class_id": cls_id,
+                }
+            )
             color = (0, 255, 0)
             cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
             text = f"{label} {conf:.2f}"
@@ -134,3 +141,8 @@ class Detector:
         lookup = {name: idx for idx, name in self._names.items()}
         return [lookup[name] for name in labels if name in lookup]
 
+
+__all__ = [
+    "DEFAULT_MODEL",
+    "Detector",
+]

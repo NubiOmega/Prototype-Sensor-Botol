@@ -1,7 +1,12 @@
-﻿ultralytics
-opencv-python
-PySide6
+matplotlib
 numpy
+opencv-python
+pandas
 pillow
-tqdm
+PySide6
+pytest
 PyYAML
+reportlab
+sqlalchemy
+tqdm
+ultralytics
